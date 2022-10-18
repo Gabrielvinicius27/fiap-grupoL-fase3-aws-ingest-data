@@ -1,0 +1,6 @@
+.c9
+Manual/Terraform/.terraform*
+Manual/Terraform/terraform.tfstate.backup
+Automatico/Terraform/.terraform*
+Automatico/Terraform/terraform.tfstate.backup
+Automatico/Serverless/.serverless

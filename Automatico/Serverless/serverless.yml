@@ -1,0 +1,82 @@
+service: fase3-aws-ingest-data-fiap-grupo-l
+
+provider:
+  name: aws
+  runtime: python3.7
+  stage: dev
+  region: us-west-2
+
+custom:
+  prefix: "fiap-fase3-grupo-l"
+  pythonRequirements:
+    slim: true
+
+functions:
+  load-csv-to-sqs:
+    handler: lambda_scripts/lambda_csv_to_sqs.lambda_handler # required, handler set in AWS Lambda
+    name: ${self:custom.prefix}-load-csv-to-sqs # optional, Deployed Lambda name
+    description: Função para carregar o nome dos arquivos csv que chegam ao bucket para o SQS # optional, Description to publish to AWS
+    runtime: python3.7 # optional overwrite, default is provider runtime
+    memorySize: 512 # optional, in MB, default is 1024
+    timeout: 30 # optional, in seconds, default is 6
+    role: arn:aws:iam::676658052077:role/lambda_load_csv_to_sqs_role
+    events:
+      - s3:
+          bucket: fiap-fase3-grupo-l-automatico
+          existing: true
+          forceDeploy: true
+          event: s3:ObjectCreated:*
+          rules:
+            - prefix: raw_csv/
+            - suffix: .csv
+            
+  csv_to_json:
+    handler: lambda_scripts/lambda_csv_to_json.lambda_handler # required, handler set in AWS Lambda
+    name: ${self:custom.prefix}-csv-to-json # optional, Deployed Lambda name
+    description: Função para ler as mensagens da fila SQS e transformar os arquivos CSV em JSON # optional, Description to publish to AWS
+    runtime: python3.7 # optional overwrite, default is provider runtime
+    memorySize: 512 # optional, in MB, default is 1024
+    timeout: 30 # optional, in seconds, default is 6
+    role: arn:aws:iam::676658052077:role/lambda_csv_to_json_role
+    events:
+      - sqs:
+          arn: arn:aws:sqs:us-west-2:676658052077:SQS-fiap-fase3-grupo-l-automatico-csv-to-json
+          batchSize: 10
+          maximumBatchingWindow: 10
+          functionResponseType: ReportBatchItemFailures
+          
+  load-json-to-sqs:
+    handler: lambda_scripts/lambda_json_to_sqs.lambda_handler # required, handler set in AWS Lambda
+    name: ${self:custom.prefix}-load-json-to-sqs # optional, Deployed Lambda name
+    description: Função para carregar o nome dos arquivos json que chegam ao bucket para o SQS # optional, Description to publish to AWS
+    runtime: python3.7 # optional overwrite, default is provider runtime
+    memorySize: 512 # optional, in MB, default is 1024
+    timeout: 30 # optional, in seconds, default is 6
+    role: arn:aws:iam::676658052077:role/lambda_load_json_to_sqs_role
+    events:
+      - s3:
+          bucket: fiap-fase3-grupo-l-automatico
+          existing: true
+          forceDeploy: true
+          event: s3:ObjectCreated:*
+          rules:
+            - prefix: raw_json/
+            - suffix: .json
+  
+  json_to_firehose:
+    handler: lambda_scripts/lambda_json_to_firehose.lambda_handler # required, handler set in AWS Lambda
+    name: ${self:custom.prefix}-json-to-firehose # optional, Deployed Lambda name
+    description: Função para ler as mensagens da fila SQS e enviar os arquivos JSON para o firehose # optional, Description to publish to AWS
+    runtime: python3.7 # optional overwrite, default is provider runtime
+    memorySize: 512 # optional, in MB, default is 1024
+    timeout: 30 # optional, in seconds, default is 6
+    role: arn:aws:iam::676658052077:role/lambda_json_to_firehose_role
+    events:
+      - sqs:
+          arn: arn:aws:sqs:us-west-2:676658052077:SQS-fiap-fase3-grupo-l-automatico-json-to-firehose
+          batchSize: 10
+          maximumBatchingWindow: 10
+          functionResponseType: ReportBatchItemFailures
+
+plugins:
+  - serverless-python-requirements
